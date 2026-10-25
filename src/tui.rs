@@ -510,7 +510,7 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, api: Api, options: Option
                 KeyCode::Char('d') => {
                     if let Some(file) = view.selected().filter(|f| !f.folder()).cloned()
                         && !view.queue.iter().any(|f| f.id == file.id)
-                        && !view.active.as_ref().is_some_and(|a| a.id == file.id)
+                        && view.active.as_ref().is_none_or(|a| a.id != file.id)
                     {
                         view.status = format!("Queued {}", file.name);
                         view.queue.push_back(file);
