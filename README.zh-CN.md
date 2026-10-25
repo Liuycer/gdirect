@@ -9,15 +9,46 @@ gdirect 是一个在终端里浏览、下载、上传和挂载 Google 云盘的�
 | 流量 | 走向 |
 | --- | --- |
 | Drive API、下载、上传（`browse`、`ls`、`download`、`upload`） | 扫描到的 Google IP。主机名和证书校验不变，可用 `--sni` / `--no-sni` 改写或去掉 TLS SNI |
-| 登录与刷新令牌（`oauth2.googleapis.com`） | 系统网络（系统 DNS、代理） |
+| 登录、账号验证与刷新令牌（`accounts.google.com`、`oauth2.googleapis.com`、`www.googleapis.com`） | 系统网络（系统 DNS、代理） |
 | `mount`（rclone） | 系统网络 |
 
 第一次运行传输类命令时会自动扫描候选 IP，并在 24 小时内沿用最快的可用 IP。`login` 和 `mount` 不扫描。
 
 网络要求：
 
-- 登录和刷新令牌必须能通过系统网络访问 `oauth2.googleapis.com`。如果 Google 被屏蔽，这一步仍然需要代理或 VPN。
+- 登录时，浏览器需要访问 `accounts.google.com`，程序需要访问 `oauth2.googleapis.com` 和 `www.googleapis.com`；刷新令牌需要访问 `oauth2.googleapis.com`。如果 Google 被屏蔽，请保持代理可用，传输期间刷新令牌也会使用它。
 - 如果开着 TUN 模式的代理或 VPN（例如 Clash/Mihomo TUN），要把扫描到的 Google IP 设为 **DIRECT 直连**，并对它们关闭 fake-ip。否则 gdirect 的流量会被重新接管，扫描结果为空。`gdirect scan --list` 可以查看这些 IP。
+
+### 只开系统代理，不开 TUN
+
+在 macOS 和 Windows 上，登录、账号验证与刷新令牌会自动读取系统中手动配置的 HTTP/HTTPS 代理。代理客户端可以保持规则模式、开启系统代理并关闭 TUN。IP 扫描、固定 IP 的 Drive API 请求、上传及 libaria2 下载会忽略应用层代理，直接连接扫描到的 IP。
+
+以 Clash/Mihomo 为例，在可能冲突的 DIRECT 规则之前加入以下规则，把 `PROXY` 换成你的代理策略组名。保留浏览器登录所需的其他 Google 资源分流规则：
+
+```yaml
+rules:
+  - DOMAIN,accounts.google.com,PROXY
+  - DOMAIN,oauth2.googleapis.com,PROXY
+  - DOMAIN,www.googleapis.com,PROXY
+  # 后接现有规则。
+```
+
+`www.googleapis.com` 的代理规则用于登录时验证账号；传输阶段访问相同域名时，程序会绕过代理客户端，因此文件流量不会被这条规则送进代理。关闭 TUN 后，无需为 gdirect 添加整个进程直连的规则，也无需把 Drive 域名全局设为 DIRECT。浏览器需要对 `127.0.0.1` 绕过代理，以便完成本机 OAuth 回调。
+
+在 Linux 上，或者使用 PAC、代理客户端没有设置系统手动代理时，可以为每条命令指定 HTTP 代理地址。下面的端口仅为示例，请使用客户端实际的 HTTP 或 mixed 端口：
+
+```sh
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect login --client-secret ~/Downloads/client_secret.json
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect browse
+```
+
+`HTTP_PROXY` / `HTTPS_PROXY`（或对应的小写变量）优先于相应的系统代理设置。请确认 `NO_PROXY` / `no_proxy` 没有排除上述 Google 端点。固定 IP 的传输仍会忽略这些代理环境变量。
+
+`mount` 会启动独立的 rclone 进程。启动挂载时传入 `HTTPS_PROXY`，rclone 就能在不开 TUN 的情况下使用代理。挂载中的文件流量走 rclone 自己的网络路径，不使用 gdirect 扫描 IP 的直连机制：
+
+```sh
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect mount
+```
 
 ## 安装
 

@@ -9,15 +9,46 @@ gdirect browses, downloads, uploads and mounts your Google Drive from the termin
 | Traffic | Route |
 | --- | --- |
 | Drive API, downloads, uploads (`browse`, `ls`, `download`, `upload`) | A scanned Google IP. The hostname and certificate check stay the same; the TLS SNI can be changed with `--sni` / `--no-sni` |
-| Sign-in and token refresh (`oauth2.googleapis.com`) | Your normal system network (DNS, proxy) |
+| Sign-in, account verification and token refresh (`accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`) | Your normal system network (DNS, proxy) |
 | `mount` (rclone) | Your normal system network |
 
 The first transfer command scans candidate IPs automatically and keeps the fastest working one for 24 hours. `login` and `mount` do not scan.
 
 Network requirements:
 
-- Sign-in and token refresh must reach `oauth2.googleapis.com` through your system network. If Google is blocked, you still need a proxy or VPN for this.
+- Sign-in needs browser access to `accounts.google.com` and application access to `oauth2.googleapis.com` and `www.googleapis.com`. Token refresh needs `oauth2.googleapis.com`. If Google is blocked, keep a proxy available for these requests, including during transfers.
 - If you use a TUN-mode proxy or VPN (for example Clash/Mihomo TUN), route the scanned Google IPs **DIRECT** and turn off fake-ip for them. Otherwise gdirect's traffic is captured again and the scan finds nothing. `gdirect scan --list` shows the IPs.
+
+### System proxy without TUN
+
+On macOS and Windows, sign-in, account verification and token refresh automatically read manual HTTP/HTTPS system proxy settings. You can leave your proxy client in rule mode with system proxy enabled and TUN disabled. IP scans, pinned Drive API requests, uploads and libaria2 downloads bypass application proxies and connect to the scanned IP directly.
+
+For Clash/Mihomo, place these rules before any conflicting DIRECT rules, replacing `PROXY` with your proxy group name. Keep your existing Google rules for the browser's other sign-in resources:
+
+```yaml
+rules:
+  - DOMAIN,accounts.google.com,PROXY
+  - DOMAIN,oauth2.googleapis.com,PROXY
+  - DOMAIN,www.googleapis.com,PROXY
+  # Your existing rules follow.
+```
+
+The `www.googleapis.com` rule lets account verification use the proxy. Pinned transfers to the same hostname bypass the proxy client, so this rule does not send those transfers through your proxy. With TUN disabled, you do not need a `PROCESS-NAME,gdirect,DIRECT` rule or global DIRECT rules for Drive domains. The browser must bypass the proxy for `127.0.0.1` so the local OAuth callback can complete.
+
+On Linux, or when using PAC or a proxy client that does not set manual system proxy settings, supply the HTTP proxy address for each command. The port below is an example; use your client's HTTP or mixed port:
+
+```sh
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect login --client-secret ~/Downloads/client_secret.json
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect browse
+```
+
+`HTTP_PROXY` / `HTTPS_PROXY` (or their lowercase forms) take precedence over the corresponding system settings. Make sure `NO_PROXY` / `no_proxy` does not exclude the Google endpoints above. Pinned transfers still bypass these environment proxies.
+
+`mount` uses a separate rclone process. Pass `HTTPS_PROXY` when starting a mount so rclone also uses your proxy without TUN. Mounted file traffic follows rclone's network path; it does not use gdirect's scanned IP routing:
+
+```sh
+HTTPS_PROXY=http://127.0.0.1:7890 gdirect mount
+```
 
 ## Install
 

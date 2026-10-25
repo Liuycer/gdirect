@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Sign-in, account verification and token refresh honor macOS and Windows HTTP/HTTPS system proxy settings without requiring TUN mode. Pinned Drive API requests, uploads, downloads and IP scans continue to bypass application proxies.
+
 ## 0.2.0
 
 ### Breaking changes
