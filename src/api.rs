@@ -93,7 +93,12 @@ impl Api {
             .query(&[("fields", "user(emailAddress)")])
             .bearer_auth(token)
             .send()
-            .map_err(|e| e.without_url())?;
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "cannot verify the account ({}); check system HTTP/HTTPS proxy settings or HTTPS_PROXY and access to www.googleapis.com",
+                    e.without_url()
+                )
+            })?;
         let data = checked(response)?;
         Ok(data["user"]["emailAddress"]
             .as_str()

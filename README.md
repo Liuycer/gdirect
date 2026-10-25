@@ -33,7 +33,7 @@ rules:
   # Your existing rules follow.
 ```
 
-The `www.googleapis.com` rule lets account verification use the proxy. Pinned transfers to the same hostname bypass the proxy client, so this rule does not send those transfers through your proxy. With TUN disabled, you do not need a `PROCESS-NAME,gdirect,DIRECT` rule or global DIRECT rules for Drive domains. The browser must bypass the proxy for `127.0.0.1` so the local OAuth callback can complete.
+The `www.googleapis.com` rule lets account verification use the proxy. Pinned transfers to the same hostname bypass the proxy client, so this rule does not send those transfers through your proxy. This holds only with TUN disabled: if TUN is on with domain sniffing, the sniffed SNI matches this rule and transfers to the scanned IPs are proxied. With TUN on, omit this rule or exclude the scanned IPs from sniffing. With TUN disabled, you do not need a `PROCESS-NAME,gdirect,DIRECT` rule or global DIRECT rules for Drive domains. The browser must bypass the proxy for `127.0.0.1` so the local OAuth callback can complete.
 
 On Linux, or when using PAC or a proxy client that does not set manual system proxy settings, supply the HTTP proxy address for each command. The port below is an example; use your client's HTTP or mixed port:
 
